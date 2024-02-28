@@ -26,10 +26,6 @@ namespace Server
     /// </summary>
     partial class Program
     {
-        /// <summary>
-        /// List of users that online
-        /// </summary>
-        private static readonly List<ClientHandler> clients = [];
 
         /// <summary>
         /// Server starter
@@ -113,8 +109,6 @@ namespace Server
                             // !!! Here is happening all the magic <3 !!!
                             // Creating client hendler class
                             ClientHandler clientH = new(client, connection, command);
-                            // putting that to the online list
-                            clients.Add(clientH);
                             // creating thread for a client listener
                             Thread clientThread = new(new ThreadStart(clientH.Start));
                             // starting the process
@@ -155,11 +149,10 @@ namespace Server
             /// </exception>
             public void Start()
             {
-                while (client.Connected)
+                while (true)
                 {
                     // Wait for data
                     while (!stream.DataAvailable) ;
-
                     // Byte buffer -> Read request -> Encode
                     byte[] bytes = new byte[client.Available];
                     stream.Read(bytes, 0, bytes.Length);
@@ -192,26 +185,50 @@ namespace Server
 
                             command = new($"SELECT * FROM users WHERE(user_login = \'{login}\' AND user_password = \'{password}\');", connection);
                         }
+                        else if (request.Contains("--ACMSG"))
+                        {
+                            command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT 100;", connection);
+                        }
 
                         if (command is not null)
                             reader = command.ExecuteReader();
                         else throw new Exception("Command is null.");
 
-                        int count = 0;
-                        while (reader.Read()) count++;
+                        if (request.Contains("--USER_CHECK"))
+                        {
+                            int count = 0;
+                            while (reader.Read()) count++;
+
+                            // User found
+                            if (count == 1)
+                            {
+                                SendMessage(request + " ANSWER{status{true}}");
+                            }
+                            // User not found
+                            else if (count < 1)
+                            {
+                                SendMessage(request + " ANSWER{status{false}}");
+                            }
+                            else if (count > 1) throw new Exception("Here was found more then one user by this login or password...");
+                            else throw new Exception("Unexpected error!");
+                        }
+                        else if (request.Contains("--ACMSG"))
+                        {
+                            List<string[]> list = [];
+
+                            while (reader.Read())
+                            {
+                                list.Add([reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)]);
+                            }
+
+                            list.Reverse();
+                            foreach (var i in list)
+                            {
+                                SendMessage($"GET --ACMSG login{{{i[0]}}} content{{{i[1]}}} msg_time{{{i[2]}}} msg_type{{{i[3]}}}");
+                            }
+                        }
+
                         reader.Close();
-                        // User found
-                        if (count == 1)
-                        {
-                            SendMessage(request + " ANSWER{status{true}}");
-                        }
-                        // User not found
-                        else if (count < 1)
-                        {
-                            SendMessage(request + " ANSWER{status{false}}");
-                        }
-                        else if (count > 1) throw new Exception("Here was found more then one user by this login or password...");
-                        else throw new Exception("Unexpected error!");
                     }
                     #endregion
 
@@ -242,8 +259,36 @@ namespace Server
                                 reader = command.ExecuteReader();
                             else throw new Exception("Command is null.");
 
-                            int count = 0;
-                            while (reader.Read()) count++;
+                            reader.Close();
+                        }
+                        else if (request.Contains("--MSG"))
+                        {
+                            int loginStart = request.IndexOf("login{") + "login{".Length;
+                            int loginEnd = request.IndexOf('}', loginStart);
+
+                            string login = request[loginStart..loginEnd];
+
+                            int contentStart = request.IndexOf("content{") + "content{".Length;
+                            int contentEnd = request.IndexOf('}', contentStart);
+
+                            string content = request[contentStart..contentEnd];
+
+                            int msg_timeStart = request.IndexOf("msg_time{") + "msg_time{".Length;
+                            int msg_timeEnd = request.IndexOf('}', msg_timeStart);
+
+                            string msg_time = request[msg_timeStart..msg_timeEnd];
+
+                            int typeStart = request.IndexOf("type{") + "type{".Length;
+                            int typeEnd = request.IndexOf('}', typeStart);
+
+                            string type = request[typeStart..typeEnd];
+
+                            command = new($"INSERT INTO all_chat(user_login, content, msg_time, msg_type) VALUES (\'{login}\', \'{content}\', \'{msg_time}\', '{type}');", connection);
+
+                            if (command is not null)
+                                reader = command.ExecuteReader();
+                            else throw new Exception("Command is null.");
+
                             reader.Close();
                         }
                     }
@@ -257,9 +302,6 @@ namespace Server
                     }
                     #endregion
                 }
-
-                // Removing client that disconected
-                clients.Remove(this);
             }
 
             /// <summary>
