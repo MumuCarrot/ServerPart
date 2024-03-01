@@ -30,7 +30,7 @@ namespace Server
         /// <summary>
         /// Server starter
         /// </summary>
-        partial class Server
+        private partial class Server
         {
             #region Fields
             /// <summary>
@@ -62,6 +62,8 @@ namespace Server
             /// mySql command
             /// </summary>
             private readonly MySqlCommand command;
+
+            private readonly OnlineUsers onlineUsers = new(TimeSpan.FromSeconds(30));
             #endregion
 
             /// <summary>
@@ -76,6 +78,8 @@ namespace Server
                 // Search for mySql data base
                 this.connection = new(ConnectionString);
                 connection.Open();
+
+                onlineUsers.Start();
 
                 // Creation of mySql command
                 this.command = connection.CreateCommand();
@@ -109,6 +113,9 @@ namespace Server
                             // !!! Here is happening all the magic <3 !!!
                             // Creating client hendler class
                             ClientHandler clientH = new(client, connection, command);
+
+                            onlineUsers.AddUser(clientH);
+
                             // creating thread for a client listener
                             Thread clientThread = new(new ThreadStart(clientH.Start));
                             // starting the process
@@ -136,10 +143,11 @@ namespace Server
         /// <param name="command">
         /// mySql comment
         /// </param>
-        partial class ClientHandler(TcpClient client, MySqlConnection connection, MySqlCommand command)
+        public partial class ClientHandler(TcpClient client, MySqlConnection connection, MySqlCommand command)
         {
             // Creating connection with a client
             private NetworkStream stream = client.GetStream();
+            public TcpClient client { get; } = client;
 
             /// <summary>
             /// Starting listening client
@@ -326,6 +334,58 @@ namespace Server
             [GeneratedRegex("^GET.+$")]
             private static partial Regex GetRegex();
             #endregion
+        }
+
+        public class OnlineUsers(TimeSpan timeout)
+        {
+            private Dictionary<ClientHandler, DateTime> _users = [];
+            private readonly TimeSpan _timeout = timeout;
+
+            public void AddUser(ClientHandler userId)
+            {
+                _users[userId] = DateTime.UtcNow;
+            }
+
+            public void Start()
+            {
+                Thread thread = new(new ThreadStart(() =>
+                {
+                    while (true)
+                    {
+                        foreach (var i in _users.Keys.ToList())
+                        {
+                            bool? bl = IsOnline(i);
+                            if (bl is not null)
+                            {
+                                if (!(bool)bl) RemoveUser(i);
+                            }
+                        }
+                    }
+                }));
+                thread.Start();
+            }
+
+            public bool? IsOnline(ClientHandler? userId)
+            {
+                if (userId is not null)
+                {
+                    return _users.ContainsKey(userId) && (DateTime.UtcNow - _users[userId]) < _timeout;
+                }
+                else return null;
+            }
+
+            public void UpdateUser(ClientHandler userId) { _users[userId] = DateTime.UtcNow; }
+
+            public void RemoveUser(ClientHandler userId)
+            {
+                Console.WriteLine("User was removed.");
+                _users.Remove(userId);
+            }
+
+            public void Clear()
+            {
+                _users.Clear();
+            }
         }
 
         // Entrence
