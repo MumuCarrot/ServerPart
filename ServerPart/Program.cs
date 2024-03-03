@@ -26,6 +26,7 @@ namespace Server
     /// </summary>
     partial class Program
     {
+        protected static readonly List<ClientHandler> onlineUsers = [];
 
         /// <summary>
         /// Server starter
@@ -63,7 +64,6 @@ namespace Server
             /// </summary>
             private readonly MySqlCommand command;
 
-            private readonly OnlineUsers onlineUsers = new(TimeSpan.FromSeconds(30));
             #endregion
 
             /// <summary>
@@ -78,8 +78,6 @@ namespace Server
                 // Search for mySql data base
                 this.connection = new(ConnectionString);
                 connection.Open();
-
-                onlineUsers.Start();
 
                 // Creation of mySql command
                 this.command = connection.CreateCommand();
@@ -114,7 +112,8 @@ namespace Server
                             // Creating client hendler class
                             ClientHandler clientH = new(client, connection, command);
 
-                            onlineUsers.AddUser(clientH);
+                            if (!onlineUsers.Contains(clientH))
+                                onlineUsers.Add(clientH);
 
                             // creating thread for a client listener
                             Thread clientThread = new(new ThreadStart(clientH.Start));
@@ -127,6 +126,23 @@ namespace Server
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
+                }
+            }
+
+            public static void GlobalMessage(ClientHandler sender, string message) 
+            {
+                var newOnlineUsers = onlineUsers;
+                foreach (var cl in newOnlineUsers) 
+                {
+                    try
+                    {
+                        if (cl != sender)
+                            cl.SendMessage(message);
+                    }
+                    catch 
+                    {
+                        onlineUsers.Remove(cl);
+                    }
                 }
             }
         }
@@ -195,7 +211,13 @@ namespace Server
                         }
                         else if (request.Contains("--ACMSG"))
                         {
-                            command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT 100;", connection);
+                            int countStart = request.IndexOf("count{") + "count{".Length;
+                            int countEnd = request.IndexOf('}', countStart);
+
+                            // Извлекаем подстроку для пароля
+                            string count = request[countStart..countEnd];
+
+                            command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT " + count + ";", connection);
                         }
 
                         if (command is not null)
@@ -292,6 +314,7 @@ namespace Server
                             string type = request[typeStart..typeEnd];
 
                             command = new($"INSERT INTO all_chat(user_login, content, msg_time, msg_type) VALUES (\'{login}\', \'{content}\', \'{msg_time}\', '{type}');", connection);
+                            SendGlobalMessage(request);
 
                             if (command is not null)
                                 reader = command.ExecuteReader();
@@ -328,64 +351,17 @@ namespace Server
                 else throw new Exception("Stream is null. #SI0001");
             }
 
+            public void SendGlobalMessage(string message) 
+            {
+                Server.GlobalMessage(this, message);
+            }
+
             #region Regex region
             [GeneratedRegex("^POST.+$")]
             private static partial Regex PostRegex();
             [GeneratedRegex("^GET.+$")]
             private static partial Regex GetRegex();
             #endregion
-        }
-
-        public class OnlineUsers(TimeSpan timeout)
-        {
-            private Dictionary<ClientHandler, DateTime> _users = [];
-            private readonly TimeSpan _timeout = timeout;
-
-            public void AddUser(ClientHandler userId)
-            {
-                _users[userId] = DateTime.UtcNow;
-            }
-
-            public void Start()
-            {
-                Thread thread = new(new ThreadStart(() =>
-                {
-                    while (true)
-                    {
-                        foreach (var i in _users.Keys.ToList())
-                        {
-                            bool? bl = IsOnline(i);
-                            if (bl is not null)
-                            {
-                                if (!(bool)bl) RemoveUser(i);
-                            }
-                        }
-                    }
-                }));
-                thread.Start();
-            }
-
-            public bool? IsOnline(ClientHandler? userId)
-            {
-                if (userId is not null)
-                {
-                    return _users.ContainsKey(userId) && (DateTime.UtcNow - _users[userId]) < _timeout;
-                }
-                else return null;
-            }
-
-            public void UpdateUser(ClientHandler userId) { _users[userId] = DateTime.UtcNow; }
-
-            public void RemoveUser(ClientHandler userId)
-            {
-                Console.WriteLine("User was removed.");
-                _users.Remove(userId);
-            }
-
-            public void Clear()
-            {
-                _users.Clear();
-            }
         }
 
         // Entrence
