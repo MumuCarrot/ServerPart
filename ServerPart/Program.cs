@@ -1,8 +1,13 @@
 ﻿/**
  * Ivan Kovalenko
- * 28.02.2024
+ * 05.03.2024
  */
+
+// NuGet collection
 using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
+
+// System collection
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -26,6 +31,9 @@ namespace Server
     /// </summary>
     partial class Program
     {
+        /// <summary>
+        /// Online users list
+        /// </summary>
         protected static readonly List<ClientHandler> onlineUsers = [];
 
         /// <summary>
@@ -63,7 +71,6 @@ namespace Server
             /// mySql command
             /// </summary>
             private readonly MySqlCommand command;
-
             #endregion
 
             /// <summary>
@@ -87,6 +94,9 @@ namespace Server
                 this.listenerThread.Start();
             }
 
+            /// <summary>
+            /// Client listener
+            /// </summary>
             private void ListenForClients()
             {
                 try
@@ -112,8 +122,8 @@ namespace Server
                             // Creating client hendler class
                             ClientHandler clientH = new(client, connection, command);
 
-                            if (!onlineUsers.Contains(clientH))
-                                onlineUsers.Add(clientH);
+                            //if (!onlineUsers.Contains(clientH))
+                            onlineUsers.Add(clientH);
 
                             // creating thread for a client listener
                             Thread clientThread = new(new ThreadStart(clientH.Start));
@@ -129,17 +139,26 @@ namespace Server
                 }
             }
 
-            public static void GlobalMessage(ClientHandler sender, string message) 
+            /// <summary>
+            /// Sending message to all online users
+            /// </summary>
+            /// <param name="sender">
+            /// Ignore this user
+            /// </param>
+            /// <param name="message">
+            /// Message
+            /// </param>
+            public static void GlobalMessage(ClientHandler sender, string message)
             {
                 var newOnlineUsers = onlineUsers;
-                foreach (var cl in newOnlineUsers) 
+                foreach (var cl in newOnlineUsers)
                 {
                     try
                     {
                         if (cl != sender)
                             cl.SendMessage(message);
                     }
-                    catch 
+                    catch
                     {
                         onlineUsers.Remove(cl);
                     }
@@ -163,7 +182,6 @@ namespace Server
         {
             // Creating connection with a client
             private NetworkStream stream = client.GetStream();
-            public TcpClient client { get; } = client;
 
             /// <summary>
             /// Starting listening client
@@ -176,7 +194,7 @@ namespace Server
                 while (true)
                 {
                     // Wait for data
-                    while (!stream.DataAvailable) ;
+                    while (!stream.DataAvailable) Thread.Sleep(500);
                     // Byte buffer -> Read request -> Encode
                     byte[] bytes = new byte[client.Available];
                     stream.Read(bytes, 0, bytes.Length);
@@ -232,30 +250,35 @@ namespace Server
                             // User found
                             if (count == 1)
                             {
-                                SendMessage(request + " ANSWER{status{true}}");
+                                SendMessage(request + " ANSWER{status{true}};");
                             }
                             // User not found
                             else if (count < 1)
                             {
-                                SendMessage(request + " ANSWER{status{false}}");
+                                SendMessage(request + " ANSWER{status{false}};");
                             }
                             else if (count > 1) throw new Exception("Here was found more then one user by this login or password...");
                             else throw new Exception("Unexpected error!");
                         }
                         else if (request.Contains("--ACMSG"))
                         {
-                            List<string[]> list = [];
+                            List<Message> messages = [];
 
                             while (reader.Read())
                             {
-                                list.Add([reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)]);
+                                messages.Add(new Message()
+                                {
+                                    MessageDateTime = reader.GetString(2),  // Date and Time
+                                    Login = reader.GetString(0),            // Username
+                                    Content = reader.GetString(1),          // Message
+                                    MessageType = reader.GetString(3)       // Type of message
+                                });
                             }
+                            messages.Reverse();
 
-                            list.Reverse();
-                            foreach (var i in list)
-                            {
-                                SendMessage($"GET --ACMSG login{{{i[0]}}} content{{{i[1]}}} msg_time{{{i[2]}}} msg_type{{{i[3]}}}");
-                            }
+                            string json = JsonConvert.SerializeObject(new { messages });
+
+                            SendMessage($"GET --ACMSG json{{{json}}};");
                         }
 
                         reader.Close();
@@ -338,8 +361,12 @@ namespace Server
             /// <summary>
             /// Recive a message and send it to the client
             /// </summary>
-            /// <param name="message"></param>
-            /// <exception cref="Exception"></exception>
+            /// <param name="message">
+            /// Message
+            /// </param>
+            /// <exception cref="Exception">
+            /// Stream is null.
+            /// </exception>
             public void SendMessage(string message)
             {
                 byte[] responseMessageBytes = Encoding.UTF8.GetBytes(message + Environment.NewLine);
@@ -348,10 +375,16 @@ namespace Server
                     stream.Write(responseMessageBytes, 0, responseMessageBytes.Length);
                     stream.Flush();
                 }
-                else throw new Exception("Stream is null. #SI0001");
+                else throw new Exception("Stream is null.");
             }
 
-            public void SendGlobalMessage(string message) 
+            /// <summary>
+            /// Sending message to all online users
+            /// </summary>
+            /// <param name="message">
+            /// Message
+            /// </param>
+            public void SendGlobalMessage(string message)
             {
                 Server.GlobalMessage(this, message);
             }
@@ -364,7 +397,24 @@ namespace Server
             #endregion
         }
 
-        // Entrence
+        /// <summary>
+        /// Message class 
+        /// </summary>
+        public class Message
+        {
+            [JsonProperty("datatime")]
+            public string MessageDateTime { get; set; } = string.Empty;
+            [JsonProperty("login")]
+            public string Login { get; set; } = string.Empty;
+            [JsonProperty("content")]
+            public string Content { get; set; } = string.Empty;
+            [JsonProperty("type")]
+            public string MessageType { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// Entrence
+        /// </summary>
         static void Main()
         {
             _ = new Server();
