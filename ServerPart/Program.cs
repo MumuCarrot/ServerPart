@@ -244,13 +244,42 @@ namespace Server
 
                         if (request.Contains("--USER_CHECK"))
                         {
+                            User user = new();
                             int count = 0;
-                            while (reader.Read()) count++;
+                            while (reader.Read())
+                            {
+                                count++;
+                                try
+                                {
+                                    string aboutMe;
+                                    try
+                                    {
+                                        aboutMe = reader.GetString(3);
+                                    }
+                                    catch
+                                    {
+                                        aboutMe = string.Empty;
+                                    }
+                                    user = new()
+                                    {
+                                        UserName = reader.GetString(0),
+                                        Login = reader.GetString(1),
+                                        Password = reader.GetString(2),
+                                        AboutMe = aboutMe
+                                    };
+                                }
+                                catch
+                                {
+                                    count = 99;
+                                    break;
+                                }
+                            }
 
                             // User found
                             if (count == 1)
                             {
-                                SendMessage(request + " ANSWER{status{true}};");
+                                string json = JsonConvert.SerializeObject(user);
+                                SendMessage($"GET --USER_CHECK json{{{json}}} ANSWER{{status{{true}}}};");
                             }
                             // User not found
                             else if (count < 1)
@@ -337,7 +366,17 @@ namespace Server
                             string type = request[typeStart..typeEnd];
 
                             command = new($"INSERT INTO all_chat(user_login, content, msg_time, msg_type) VALUES (\'{login}\', \'{content}\', \'{msg_time}\', '{type}');", connection);
-                            SendGlobalMessage(request);
+
+                            Message message = new()
+                            {
+                                MessageDateTime = msg_time,
+                                Login = login,
+                                Content = content,
+                                MessageType = type
+                            };
+                            List<Message> messages = [message];
+                            string json = JsonConvert.SerializeObject(new { messages });
+                            SendGlobalMessage($"POST --MSG json{{{json}}}");
 
                             if (command is not null)
                                 reader = command.ExecuteReader();
@@ -347,6 +386,32 @@ namespace Server
                         }
                     }
                     #endregion
+
+                    else if (request.Contains("PATCH")) 
+                    {
+                        if (request.Contains("--UPD_USER")) 
+                        {
+                            // Searching for JSON start point
+                            int startIndex = request.IndexOf("user{") + "user{".Length;
+                            if (startIndex == -1) throw new Exception("JSON start point wasn't found.");
+                            int endIndex = request.IndexOf('}') + 1;
+                            if (endIndex == -1) throw new Exception("JSON end point wasn't found.");
+
+                            // Getting JSON into string
+                            string json = request[startIndex..endIndex];
+
+                            User? user = JsonConvert.DeserializeObject<User>(json);
+
+                            if (user is not null) 
+                            { 
+                                command = new($"UPDATE users SET username = \"{user.UserName}\", user_login = \"{user.Login}\", about_me = \"{user.AboutMe}\" WHERE user_login = '{user.Login}';", connection);
+                            }
+
+                            if (command is not null)
+                                command.ExecuteReader();
+                            else throw new Exception("Command is null.");
+                        }
+                    }
 
                     // Default region
                     #region default region
@@ -402,7 +467,7 @@ namespace Server
         /// </summary>
         public class Message
         {
-            [JsonProperty("datatime")]
+            [JsonProperty("datetime")]
             public string MessageDateTime { get; set; } = string.Empty;
             [JsonProperty("login")]
             public string Login { get; set; } = string.Empty;
@@ -410,6 +475,18 @@ namespace Server
             public string Content { get; set; } = string.Empty;
             [JsonProperty("type")]
             public string MessageType { get; set; } = string.Empty;
+        }
+
+        public class User 
+        {
+            [JsonProperty("username")]
+            public string UserName { get; set; } = string.Empty;
+            [JsonProperty("login")]
+            public string Login { get; set; } = string.Empty;
+            [JsonProperty("password")]
+            public string Password { get; set; } = string.Empty;
+            [JsonProperty("aboutme")]
+            public string AboutMe { get; set; } = string.Empty;
         }
 
         /// <summary>
