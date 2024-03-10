@@ -1,17 +1,17 @@
 ﻿/**
  * Ivan Kovalenko
- * 05.03.2024
+ * 10.03.2024
  */
 
 // NuGet collection
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 
+
 // System collection
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 
 /**
  * Server is parted on two parts
@@ -29,12 +29,12 @@ namespace Server
     /// <summary>
     /// Program entrence point
     /// </summary>
-    partial class Program
+    class Program
     {
         /// <summary>
         /// Online users list
         /// </summary>
-        protected static readonly List<ClientHandler> onlineUsers = [];
+        private static readonly List<ClientHandler> onlineUsers = [];
 
         /// <summary>
         /// Server starter
@@ -70,7 +70,7 @@ namespace Server
             /// <summary>
             /// mySql command
             /// </summary>
-            private readonly MySqlCommand command;
+            private MySqlCommand command;
             #endregion
 
             /// <summary>
@@ -183,6 +183,9 @@ namespace Server
             // Creating connection with a client
             private NetworkStream stream = client.GetStream();
 
+            // Creating mySql reader
+            MySqlDataReader? reader;
+
             /// <summary>
             /// Starting listening client
             /// </summary>
@@ -200,50 +203,83 @@ namespace Server
                     stream.Read(bytes, 0, bytes.Length);
                     string request = Encoding.UTF8.GetString(bytes);
 
-                    // Creating mySql reader
-                    MySqlDataReader reader;
+                    // Searching for key word
+                    int keyWordIndex = request.IndexOf(' ');
+                    if (keyWordIndex == -1) throw new Exception("Key word was not found.");
 
-                    // GET request
-                    #region GET region
-                    if (GetRegex().IsMatch(request))
+                    // Getting key word
+                    string keyWord = request[..keyWordIndex];
+                    switch (keyWord)
                     {
-                        Console.WriteLine($"GET request was recived.\n{request}\n\n");
-                        // Проверка на существующего юзера
-                        if (request.Contains("--USER_CHECK"))
-                        {
-                            // Находим позиции начала и конца логина
-                            int loginStart = request.IndexOf("login{") + "login{".Length;
-                            int loginEnd = request.IndexOf('}', loginStart);
+                        case "GET":
+                            this.GetRequest(request[(keyWordIndex + 1)..]);
+                            break; // GET
+                        case "POST":
+                            this.PostRequest(request[(keyWordIndex + 1)..]);
+                            break; // POST
+                        case "PATCH":
+                            this.PatchRequest(request[(keyWordIndex + 1)..]);
+                            break; // PATCH
+                        default: throw new Exception("Method wasn't found. =(");
+                    }
+                }
+            }
 
-                            // Извлекаем подстроку для логина
-                            string login = request[loginStart..loginEnd];
+            /// <summary>
+            /// Get request
+            /// </summary>
+            /// <param name="request">
+            /// Method with request
+            /// </param>
+            /// <exception cref="Exception">
+            /// Method not found
+            /// </exception>
+            public void GetRequest(string request)
+            {
+                int methodIndex = request.IndexOf(' ');
+                if (methodIndex == -1) throw new Exception("Get method was not found.");
 
-                            // Находим позиции начала и конца пароля
-                            int passwordStart = request.IndexOf("password{") + "password{".Length;
-                            int passwordEnd = request.IndexOf('}', passwordStart);
+                string methodWord = request[..methodIndex];
+                switch (methodWord)
+                {
+                    case "--USER_CHECK":
+                        // Находим позиции начала и конца логина
+                        int loginStart = request.IndexOf("login{") + "login{".Length;
+                        int loginEnd = request.IndexOf('}', loginStart);
 
-                            // Извлекаем подстроку для пароля
-                            string password = request[passwordStart..passwordEnd];
+                        // Извлекаем подстроку для логина
+                        string login = request[loginStart..loginEnd];
 
-                            command = new($"SELECT * FROM users WHERE(user_login = \'{login}\' AND user_password = \'{password}\');", connection);
-                        }
-                        else if (request.Contains("--ACMSG"))
-                        {
-                            int countStart = request.IndexOf("count{") + "count{".Length;
-                            int countEnd = request.IndexOf('}', countStart);
+                        // Находим позиции начала и конца пароля
+                        int passwordStart = request.IndexOf("password{") + "password{".Length;
+                        int passwordEnd = request.IndexOf('}', passwordStart);
 
-                            // Извлекаем подстроку для пароля
-                            string count = request[countStart..countEnd];
+                        // Извлекаем подстроку для пароля
+                        string password = request[passwordStart..passwordEnd];
 
-                            command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT " + count + ";", connection);
-                        }
+                        command = new($"SELECT * FROM users WHERE(user_login = \'{login}\' AND user_password = \'{password}\');", connection);
+                        break; // --USER_CHECK
+                    case "--ACMSG":
+                        int countStart = request.IndexOf("count{") + "count{".Length;
+                        int countEnd = request.IndexOf('}', countStart);
 
-                        if (command is not null)
-                            reader = command.ExecuteReader();
-                        else throw new Exception("Command is null.");
+                        // Извлекаем подстроку для пароля
+                        string count = request[countStart..countEnd];
 
-                        if (request.Contains("--USER_CHECK"))
-                        {
+                        command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT " + count + ";", connection);
+                        break; // --ACMSG
+                }
+
+                if (command is not null)
+                    reader = command.ExecuteReader();
+                else throw new Exception("Command is null.");
+
+                if (reader is not null)
+                {
+                    string json = string.Empty;
+                    switch (methodWord)
+                    {
+                        case "--USER_CHECK":
                             User user = new();
                             int count = 0;
                             while (reader.Read())
@@ -278,7 +314,7 @@ namespace Server
                             // User found
                             if (count == 1)
                             {
-                                string json = JsonConvert.SerializeObject(user);
+                                json = JsonConvert.SerializeObject(user);
                                 SendMessage($"GET --USER_CHECK json{{{json}}} ANSWER{{status{{true}}}};");
                             }
                             // User not found
@@ -288,9 +324,8 @@ namespace Server
                             }
                             else if (count > 1) throw new Exception("Here was found more then one user by this login or password...");
                             else throw new Exception("Unexpected error!");
-                        }
-                        else if (request.Contains("--ACMSG"))
-                        {
+                            break; // --USER_CHECK
+                        case "--ACMSG":
                             List<Message> messages = [];
 
                             while (reader.Read())
@@ -305,121 +340,136 @@ namespace Server
                             }
                             messages.Reverse();
 
-                            string json = JsonConvert.SerializeObject(new { messages });
+                            json = JsonConvert.SerializeObject(new { messages });
 
                             SendMessage($"GET --ACMSG json{{{json}}};");
-                        }
-
-                        reader.Close();
+                            break; // --ACMSG
                     }
-                    #endregion
+                    reader.Close();
+                }
+            }
 
-                    // POST request
-                    #region POST region
-                    else if (PostRegex().IsMatch(request))
+            /// <summary>
+            /// Post request
+            /// </summary>
+            /// <param name="request">
+            /// Method with request
+            /// </param>
+            /// <exception cref="Exception">
+            /// Method not found
+            /// </exception>
+            public void PostRequest(string request)
+            {
+                if (reader is not null) 
+                { 
+                    int methodIndex = request.IndexOf(' ');
+                    if (methodIndex == -1) throw new Exception("Post method was not found.");
+
+                    string methodWord = request[..methodIndex];
+                    switch (methodWord)
                     {
-                        Console.WriteLine("POST request was recived.");
-                        if (request.Contains("--USER"))
-                        {
+                        case "--USER":
                             // Находим позиции начала и конца логина
-                            int loginStart = request.IndexOf("login{") + "login{".Length;
-                            int loginEnd = request.IndexOf('}', loginStart);
+                            int loginStartUser = request.IndexOf("login{") + "login{".Length;
+                            int loginEndUser = request.IndexOf('}', loginStartUser);
 
                             // Извлекаем подстроку для логина
-                            string login = request[loginStart..loginEnd];
+                            string loginUser = request[loginStartUser..loginEndUser];
 
                             // Находим позиции начала и конца пароля
-                            int passwordStart = request.IndexOf("password{") + "password{".Length;
-                            int passwordEnd = request.IndexOf('}', passwordStart);
+                            int passwordStartUser = request.IndexOf("password{") + "password{".Length;
+                            int passwordEndUser = request.IndexOf('}', passwordStartUser);
 
                             // Извлекаем подстроку для пароля
-                            string password = request[passwordStart..passwordEnd];
+                            string passwordUser = request[passwordStartUser..passwordEndUser];
 
-                            command = new($"INSERT INTO users VALUES (\'{login}\', \'{login}\', \'{password}\');", connection);
+                            command = new($"INSERT INTO users VALUES (\'{loginUser}\', \'{loginUser}\', \'{passwordUser}\');", connection);
+                            break; // --USER
+                        case "--MSG":
+                            int loginStartMsg = request.IndexOf("login{") + "login{".Length;
+                            int loginEndMsg = request.IndexOf('}', loginStartMsg);
 
-                            if (command is not null)
-                                reader = command.ExecuteReader();
-                            else throw new Exception("Command is null.");
+                            string loginMsg = request[loginStartMsg..loginEndMsg];
 
-                            reader.Close();
-                        }
-                        else if (request.Contains("--MSG"))
-                        {
-                            int loginStart = request.IndexOf("login{") + "login{".Length;
-                            int loginEnd = request.IndexOf('}', loginStart);
+                            int contentStartMsg = request.IndexOf("content{") + "content{".Length;
+                            int contentEndMsg = request.IndexOf('}', contentStartMsg);
 
-                            string login = request[loginStart..loginEnd];
+                            string contentMsg = request[contentStartMsg..contentEndMsg];
 
-                            int contentStart = request.IndexOf("content{") + "content{".Length;
-                            int contentEnd = request.IndexOf('}', contentStart);
+                            int msg_timeStartMsg = request.IndexOf("msg_time{") + "msg_time{".Length;
+                            int msg_timeEndMsg = request.IndexOf('}', msg_timeStartMsg);
 
-                            string content = request[contentStart..contentEnd];
+                            string msg_timeMsg = request[msg_timeStartMsg..msg_timeEndMsg];
 
-                            int msg_timeStart = request.IndexOf("msg_time{") + "msg_time{".Length;
-                            int msg_timeEnd = request.IndexOf('}', msg_timeStart);
+                            int typeStartMsg = request.IndexOf("type{") + "type{".Length;
+                            int typeEndMsg = request.IndexOf('}', typeStartMsg);
 
-                            string msg_time = request[msg_timeStart..msg_timeEnd];
+                            string typeMsg = request[typeStartMsg..typeEndMsg];
 
-                            int typeStart = request.IndexOf("type{") + "type{".Length;
-                            int typeEnd = request.IndexOf('}', typeStart);
-
-                            string type = request[typeStart..typeEnd];
-
-                            command = new($"INSERT INTO all_chat(user_login, content, msg_time, msg_type) VALUES (\'{login}\', \'{content}\', \'{msg_time}\', '{type}');", connection);
+                            command = new($"INSERT INTO all_chat(user_login, content, msg_time, msg_type) VALUES (\'{loginMsg}\', \'{contentMsg}\', \'{msg_timeMsg}\', '{typeMsg}');", connection);
 
                             Message message = new()
                             {
-                                MessageDateTime = msg_time,
-                                Login = login,
-                                Content = content,
-                                MessageType = type
+                                MessageDateTime = msg_timeMsg,
+                                Login = loginMsg,
+                                Content = contentMsg,
+                                MessageType = typeMsg
                             };
                             List<Message> messages = [message];
                             string json = JsonConvert.SerializeObject(new { messages });
-                            SendGlobalMessage($"POST --MSG json{{{json}}}");
-
-                            if (command is not null)
-                                reader = command.ExecuteReader();
-                            else throw new Exception("Command is null.");
-
-                            reader.Close();
-                        }
+                            this.SendGlobalMessage($"POST --MSG json{{{json}}}");
+                            break; // --MSG
                     }
-                    #endregion
 
-                    else if (request.Contains("PATCH")) 
+                    if (command is not null)
+                        command.ExecuteReader();
+                    else throw new Exception("Command is null.");
+                }
+            }
+
+            /// <summary>
+            /// Patch request
+            /// </summary>
+            /// <param name="request">
+            /// Method with request
+            /// </param>
+            /// <exception cref="Exception">
+            /// Method not found
+            /// </exception>
+            public void PatchRequest(string request)
+            {
+                if (reader is not null)
+                {
+                    int methodIndex = request.IndexOf(' ');
+                    if (methodIndex == -1) throw new Exception("Patch method was not found.");
+
+                    string methodWord = request[..methodIndex];
+
+                    string json = string.Empty;
+                    switch (methodWord)
                     {
-                        if (request.Contains("--UPD_USER")) 
-                        {
+                        case "--UPD_USER":
                             // Searching for JSON start point
-                            int startIndex = request.IndexOf("user{") + "user{".Length;
-                            if (startIndex == -1) throw new Exception("JSON start point wasn't found.");
-                            int endIndex = request.IndexOf('}') + 1;
-                            if (endIndex == -1) throw new Exception("JSON end point wasn't found.");
+                            int startIndexUpdUser = request.IndexOf("user{") + "user{".Length;
+                            if (startIndexUpdUser == -1) throw new Exception("JSON start point wasn't found.");
+                            int endIndexUpdUser = request.IndexOf('}') + 1;
+                            if (endIndexUpdUser == -1) throw new Exception("JSON end point wasn't found.");
 
                             // Getting JSON into string
-                            string json = request[startIndex..endIndex];
+                            json = request[startIndexUpdUser..endIndexUpdUser];
 
                             User? user = JsonConvert.DeserializeObject<User>(json);
 
-                            if (user is not null) 
-                            { 
+                            if (user is not null)
+                            {
                                 command = new($"UPDATE users SET username = \"{user.UserName}\", user_login = \"{user.Login}\", about_me = \"{user.AboutMe}\" WHERE user_login = '{user.Login}';", connection);
                             }
-
-                            if (command is not null)
-                                command.ExecuteReader();
-                            else throw new Exception("Command is null.");
-                        }
+                            break; // --UPD_USER
                     }
 
-                    // Default region
-                    #region default region
-                    else
-                    {
-                        Console.WriteLine("Something gone wrong.");
-                    }
-                    #endregion
+                    if (command is not null)
+                        command.ExecuteReader();
+                    else throw new Exception("Command is null.");
                 }
             }
 
@@ -453,13 +503,6 @@ namespace Server
             {
                 Server.GlobalMessage(this, message);
             }
-
-            #region Regex region
-            [GeneratedRegex("^POST.+$")]
-            private static partial Regex PostRegex();
-            [GeneratedRegex("^GET.+$")]
-            private static partial Regex GetRegex();
-            #endregion
         }
 
         /// <summary>
@@ -477,7 +520,7 @@ namespace Server
             public string MessageType { get; set; } = string.Empty;
         }
 
-        public class User 
+        public class User
         {
             [JsonProperty("username")]
             public string UserName { get; set; } = string.Empty;
