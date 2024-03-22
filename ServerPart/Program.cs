@@ -427,6 +427,7 @@ namespace Server
                 }
             }
 
+            string byteBush = string.Empty;
             /// <summary>
             /// Patch request
             /// </summary>
@@ -465,6 +466,46 @@ namespace Server
                                 command = new($"UPDATE users SET username = \"{user.UserName}\", user_login = \"{user.Login}\", about_me = \"{user.AboutMe}\" WHERE user_login = '{user.Login}';", connection);
                             }
                             break; // --UPD_USER
+                        case "--UPD_AVATAR":
+                            Avatar? ava = null;
+                            if (request.Contains("avatar"))
+                            {
+                                // Searching for JSON start point
+                                int startIndexUpdAvatar = request.IndexOf("avatar{") + "avatar{".Length;
+                                if (startIndexUpdAvatar == -1) throw new Exception("JSON start point wasn't found.");
+                                int endIndexUpdAvatar = request.IndexOf('}') + 1;
+                                if (endIndexUpdAvatar == -1) throw new Exception("JSON end point wasn't found.");
+
+                                // Getting JSON into string
+                                json = request[startIndexUpdAvatar..endIndexUpdAvatar];
+
+                                ava = JsonConvert.DeserializeObject<Avatar>(json);
+                            }
+                            else if (request.Contains("part"))
+                            {
+                                // Searching for JSON start point
+                                int startIndexUpdAvatar = request.IndexOf("part{") + "part{".Length;
+                                if (startIndexUpdAvatar == -1) throw new Exception("JSON start point wasn't found.");
+                                int endIndexUpdAvatar = request.IndexOf('}') + 1;
+                                if (endIndexUpdAvatar == -1) throw new Exception("JSON end point wasn't found.");
+
+                                json = request[startIndexUpdAvatar..(endIndexUpdAvatar - 1)];
+
+                                byteBush += json;
+                            }
+                            else if (request.Contains("close")) 
+                            { 
+                                if (ava is not null)
+                                {
+                                    command = new("UPDATE users SET avatar = \"" + $"C:\\ServerAvatars\\user{{{ava.UserName}}}.jpeg" + "\";", connection);
+
+                                    if (command is not null)
+                                        command.ExecuteReader();
+                                    else throw new Exception("Command is null.");
+                                }
+                            }
+
+                            break; // --UPD_AVATAR
                     }
 
                     if (command is not null)
@@ -503,33 +544,6 @@ namespace Server
             {
                 Server.GlobalMessage(this, message);
             }
-        }
-
-        /// <summary>
-        /// Message class 
-        /// </summary>
-        public class Message
-        {
-            [JsonProperty("datetime")]
-            public string MessageDateTime { get; set; } = string.Empty;
-            [JsonProperty("login")]
-            public string Login { get; set; } = string.Empty;
-            [JsonProperty("content")]
-            public string Content { get; set; } = string.Empty;
-            [JsonProperty("type")]
-            public string MessageType { get; set; } = string.Empty;
-        }
-
-        public class User
-        {
-            [JsonProperty("username")]
-            public string UserName { get; set; } = string.Empty;
-            [JsonProperty("login")]
-            public string Login { get; set; } = string.Empty;
-            [JsonProperty("password")]
-            public string Password { get; set; } = string.Empty;
-            [JsonProperty("aboutme")]
-            public string AboutMe { get; set; } = string.Empty;
         }
 
         /// <summary>
