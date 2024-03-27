@@ -1,9 +1,4 @@
-﻿/**
- * Ivan Kovalenko
- * 10.03.2024
- */
-
-using Connect.server;
+﻿using Connect.server;
 
 namespace Connect.main
 {

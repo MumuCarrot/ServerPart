@@ -1,7 +1,6 @@
 ﻿using Connect.message;
 using Connect.user;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Connect.server
 {
@@ -9,6 +8,32 @@ namespace Connect.server
     {
         private partial class Client
         {
+            /// <summary>
+            /// Post request
+            /// </summary>
+            /// <param name="request">
+            /// Method with request
+            /// </param>
+            /// <exception cref="Exception">
+            /// Method not found
+            /// </exception>
+            private void PostRequest(string request)
+            {
+                int methodIndex = request.IndexOf(' ');
+                if (methodIndex == -1) throw new Exception("Post method was not found.");
+
+                string methodWord = request[..methodIndex];
+                switch (methodWord)
+                {
+                    case "--USER":
+                        this.PostUser(request);
+                        break; // --USER
+                    case "--MSG":
+                        this.PostMessage(request);
+                        break; // --MSG
+                }
+            }
+
             private void PostUser(string request)
             {
                 User? user = JsonExtractor<User>(request, "json", 0);
@@ -21,7 +46,7 @@ namespace Connect.server
                 }
             }
 
-            private void PostMessage(string request) 
+            private void PostMessage(string request)
             {
                 Message? message = JsonExtractor<Message>(request, "json", 0);
 

@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Text;
 
 namespace Connect.server
@@ -33,15 +34,19 @@ namespace Connect.server
 
         private partial class Client
         {
-            private static T? JsonExtractor<T>(string json, string keyWord, int correction = 0)
+            private static T? JsonExtractor<T>(string json, string keyWord, int left = 0, int right = 0)
             {
                 // Searching for JSON start point
                 int start = json.IndexOf($"{keyWord}{{") + $"{keyWord}{{".Length;
                 if (start == -1) throw new Exception("JSON start point wasn't found.");
-                int end = json.IndexOf('}', start);
+                int endpointStart = json.LastIndexOf("},", start);
+                if (endpointStart == -1) endpointStart = start;
+                int end = json.IndexOf('}', endpointStart);
                 if (end == -1) throw new Exception("JSON end point wasn't found.");
 
-                return JsonConvert.DeserializeObject<T>(json[start..(end - correction)]);
+                string str = json[(start + left)..(end + right)];
+
+                return JsonConvert.DeserializeObject<T>(str);
             }
 
             /// <summary>
@@ -75,6 +80,5 @@ namespace Connect.server
                 server.GlobalMessage(this, message);
             }
         }
-
     }
 }

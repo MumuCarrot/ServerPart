@@ -8,9 +8,38 @@ namespace Connect.server
     {
         private partial class Client
         {
+            /// <summary>
+            /// Get request
+            /// </summary>
+            /// <param name="request">
+            /// Method with request
+            /// </param>
+            /// <exception cref="Exception">
+            /// Method not found
+            /// </exception>
+            private void GetRequest(string request)
+            {
+                int methodIndex = request.IndexOf(' ');
+                if (methodIndex == -1) throw new Exception("Get method was not found.");
+
+                string methodWord = request[..methodIndex];
+                switch (methodWord)
+                {
+                    case "--USER_CHECK":
+                        this.GetUserCheck(request);
+                        break; // --USER_CHECK
+                    case "--ACMSG":
+                        this.GetUpdateChat(request);
+                        break; // --ACMSG
+                    case "--UBYLOG":
+                        this.GetUsersByLogin(request);
+                        break; // --UBYLOG
+                }
+            }
+
             private void GetUserCheck(string request)
             {
-                User? user = JsonExtractor<User>(request, "json", 0);
+                User? user = JsonExtractor<User>(request, "json", 0, 1);
 
                 if (user is not null)
                 {
@@ -105,10 +134,37 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
 
                     UserPackege users = new();
-                    foreach (var user in reader)
+                    while (reader.Read())
                     {
-                        if (user is not null && user is User u)
-                            users.users.Add(u);
+                        string username;
+                        string login;
+                        string password;
+                        string aboutme;
+                        string pppath;
+
+                        try { username = reader.GetString(0); }
+                        catch { username = string.Empty; }
+
+                        try { login = reader.GetString(1); }
+                        catch { login = string.Empty; }
+
+                        try { password = reader.GetString(2); }
+                        catch { password = string.Empty; }
+
+                        try { aboutme = reader.GetString(3); }
+                        catch { aboutme = string.Empty; }
+
+                        try { pppath = reader.GetString(4); }
+                        catch { pppath = string.Empty; }
+
+                        users.users.Add(new User
+                        {
+                            UserName = username,
+                            Login = login,
+                            Password = password,
+                            AboutMe = aboutme,
+                            ProfilePicturePath = pppath
+                        });
                     }
 
                     string json = JsonConvert.SerializeObject(users);

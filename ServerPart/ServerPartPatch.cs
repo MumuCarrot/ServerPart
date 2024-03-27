@@ -9,6 +9,35 @@ namespace Connect.server
     {
         private partial class Client
         {
+            /// <summary>
+            /// Patch request
+            /// </summary>
+            /// <param name="request">
+            /// Method with request
+            /// </param>
+            /// <exception cref="Exception">
+            /// Method not found
+            /// </exception>
+            private void PatchRequest(string request)
+            {
+                int methodIndex = request.IndexOf(' ');
+                if (methodIndex == -1) throw new Exception("Patch method was not found.");
+
+                string methodWord = request[..methodIndex];
+                switch (methodWord)
+                {
+                    case "--UPD_USER":
+                        PatchUpdateUser(request);
+                        break; // --UPD_USER
+                    case "--UPD_AVATAR":
+                        PatchUserProfilePicture(request);
+                        break; // --UPD_AVATAR
+                    case "--UPD_UPASSWORD":
+                        PatchUserPassword(request);
+                        break; // --UPD_UPASSWORD
+                }
+            }
+
             private void PatchUpdateUser(string request)
             {
                 User? user = JsonExtractor<User>(request, "json", 0);

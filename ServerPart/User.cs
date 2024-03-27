@@ -21,5 +21,7 @@ namespace Connect.user
         public string Password { get; set; } = string.Empty;
         [JsonProperty("aboutme")]
         public string AboutMe { get; set; } = string.Empty;
+        [JsonProperty("profilepicturepath")]
+        public string ProfilePicturePath { get; set; } = string.Empty;
     }
 }
