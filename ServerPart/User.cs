@@ -2,6 +2,12 @@
 
 namespace Connect.user
 {
+    public class UserPackege 
+    {
+        [JsonProperty("users")]
+        public List<User> users = [];
+    }
+
     /// <summary>
     /// An implementation of user
     /// </summary>
