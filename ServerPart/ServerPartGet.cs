@@ -125,11 +125,11 @@ namespace Connect.server
 
             private void GetUsersByLogin(string request)
             {
-                string? str = JsonExtractor<string>(request, "json", 0);
+                string[]? str = JsonExtractor<string[]>(request, "json", 0);
 
                 if (str is not null)
                 {
-                    command = new($"SELECT username, user_login, user_password, about_me, avatar FROM users WHERE user_login LIKE '%{str}%';", connection);
+                    command = new($"SELECT username, user_login, user_password, about_me, avatar FROM users WHERE user_login LIKE '%{str[1]}%' AND user_login != '{str[0]}' LIMIT 6;", connection);
 
                     using var reader = command.ExecuteReader();
 
