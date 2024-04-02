@@ -1,5 +1,7 @@
 ﻿using Connect.message;
 using Connect.user;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Newtonsoft.Json;
 
 namespace Connect.server
@@ -48,16 +50,48 @@ namespace Connect.server
 
             private void PostMessage(string request)
             {
-                Message? message = JsonExtractor<Message>(request, "json", 0);
+                Message? message = JsonExtractor<Message>(request, "json", right:1);
 
                 if (message is not null)
-                {
-                    command = new($"INSERT INTO all_chat(user_login, content, msg_time, msg_type) VALUES (\'{message.Login}\', \'{message.Content}\', \'{message.MessageDateTime}\', '{message.MessageType}');", connection);
+                { 
+                    string content = message.Content?.Text ?? "";
+                    if (content.Contains('\'')) 
+                    {
+                        content = message.Content?.Text?.Replace("\'", "&#cO") ?? "null";
+                    }
 
-                    using var reader = command.ExecuteReader();
+                    /**
+                     *  STAGE I
+                     *  
+                     *  { 
+                     *      "_id": ObjectId('660afbf1b76620cd7544eefe') 
+                     *  }
+                     */
 
-                    List<Message> messages = [message];
-                    string json = JsonConvert.SerializeObject(new { messages });
+                    var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse("660afbf1b76620cd7544eefe"));
+
+                    /**
+                     *  STAGE II
+                     * 
+                     *  { 
+                     *      $push: { 
+                     *          "Messages": { 
+                     *              "sender": "so4najaPopka19", 
+                     *              "Content": { 
+                     *                  "Text": "I love u too", 
+                     *                  "Image": "" 
+                     *              },
+                     *              "Time": { 
+                     *                  "$date": "2024-04-01T18:25:49.205Z" 
+                     *                  }
+                     *              }
+                     */
+
+                    var update = Builders<Chat>.Update.Push(c => c.Messages, message);
+
+                    collection?.UpdateOne(filter, update);
+
+                    string json = JsonConvert.SerializeObject(message);
 
                     this.SendGlobalMessage($"POST --MSG json{{{json}}}");
                 }

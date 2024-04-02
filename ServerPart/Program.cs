@@ -14,7 +14,7 @@ namespace Connect.main
         {
             var server = new Server("127.0.0.1", 7007);
 
-            server.SetDBPath("server=localhost;uid=root;pwd=1234;database=mydb;");
+            server.SetDBPath("server=localhost;uid=root;pwd=1234;database=mydb;", "mongodb://localhost:27017");
 
             server.Start();
         }

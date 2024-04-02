@@ -3,11 +3,15 @@ using Connect.profilePicture;
 
 // NuGet collection
 using MySql.Data.MySqlClient;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 // System collection
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using MySqlX.XDevAPI;
+using Connect.message;
 
 namespace Connect.server
 {
@@ -42,6 +46,14 @@ namespace Connect.server
         /// </summary>
         private MySqlCommand? command;
 
+        private const string MongoDatabaseName = "test";
+
+        private const string MongoCollectionName = "messages";
+
+        private MongoClient? mongoClient;
+
+        private static IMongoCollection<Chat>? collection;
+
         /// <summary>
         /// Server primary constructor
         /// </summary>
@@ -73,14 +85,20 @@ namespace Connect.server
         /// <param name="path">
         /// Database path
         /// </param>
-        public void SetDBPath(string path)
+        public void SetDBPath(string mySqlPath, string MongoDBPath)
         {
-            // Search for data base
-            this.connection = new(path);
+            // Search for mySql user database
+            this.connection = new(mySqlPath);
             connection.Open();
 
-            // Creation of mySql command
+            // Creation of mySql user command
             this.command = connection.CreateCommand();
+
+            // Search for MongoDB data base
+            mongoClient = new(MongoDBPath);
+
+            // Connecting to the MongoDB messageList collection
+            collection = mongoClient.GetDatabase(MongoDatabaseName).GetCollection<Chat>(MongoCollectionName);
         }
 
         /// <summary>

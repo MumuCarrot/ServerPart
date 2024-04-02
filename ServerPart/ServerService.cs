@@ -36,17 +36,27 @@ namespace Connect.server
         {
             private static T? JsonExtractor<T>(string json, string keyWord, int left = 0, int right = 0)
             {
-                // Searching for JSON start point
-                int start = json.IndexOf($"{keyWord}{{") + $"{keyWord}{{".Length;
-                if (start == -1) throw new Exception("JSON start point wasn't found.");
-                int endpointStart = json.LastIndexOf("},", start);
-                if (endpointStart == -1) endpointStart = start;
-                int end = json.IndexOf('}', endpointStart);
-                if (end == -1) throw new Exception("JSON end point wasn't found.");
+                string str = string.Empty;
+                try
+                {
+                    // Searching for JSON start point
+                    int start = json.IndexOf($"{keyWord}{{") + $"{keyWord}{{".Length;
+                    if (start == -1) throw new Exception("JSON start point wasn't found.");
+                    int endpointStart = json.LastIndexOf("},") + "},".Length;
+                    if (endpointStart == -1) endpointStart = start;
+                    int end = json.IndexOf('}', endpointStart);
+                    if (end == -1) throw new Exception("JSON end point wasn't found.");
 
-                string str = json[(start + left)..(end + right)];
+                    str = json[(start + left)..(end + right)];
 
-                return JsonConvert.DeserializeObject<T>(str);
+                    return JsonConvert.DeserializeObject<T>(str);
+                }
+                catch
+                {
+                    Console.WriteLine($"json:\n{json}\n\n");
+                    Console.WriteLine($"str:\n{str}\n");
+                    return default(T);
+                }
             }
 
             /// <summary>

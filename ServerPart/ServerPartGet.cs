@@ -1,5 +1,7 @@
 ﻿using Connect.message;
 using Connect.user;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Newtonsoft.Json;
 
 namespace Connect.server
@@ -99,7 +101,7 @@ namespace Connect.server
 
                 if (count is not null)
                 {
-                    command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT {count} ;", connection);
+                    /*command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT {count} ;", connection);
 
                     using var reader = command.ExecuteReader();
 
@@ -107,17 +109,40 @@ namespace Connect.server
 
                     while (reader.Read())
                     {
+                        string content = reader.GetString(1);
+                        if (content.Contains("&#cO"))
+                        {
+                            content = content.Replace("&#cO", "\'");
+                        }
+
                         messages.Add(new Message()
                         {
                             MessageDateTime = reader.GetString(2),  // Date and Time
                             Login = reader.GetString(0),            // Username
-                            Content = reader.GetString(1),          // Message
+                            Content = content,                      // Message
                             MessageType = reader.GetString(3)       // Type of message
                         });
                     }
-                    messages.Reverse();
+                    messages.Reverse();*/
 
-                    string json = JsonConvert.SerializeObject(new { messages });
+                    List<Message> messages = [];
+
+                    var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse("660afbf1b76620cd7544eefe"));
+
+                    var result = collection.Find(filter);
+
+                    foreach (var i in result.ToList<Chat>())
+                    {
+                        if (i.Messages is not null)
+                        {
+                            foreach (var j in i.Messages)
+                            {
+                                messages.Add(j);
+                            }
+                        }
+                    }
+
+                    string json = JsonConvert.SerializeObject(messages);
 
                     SendMessage($"GET --ACMSG json{{{json}}};");
                 }
@@ -129,7 +154,12 @@ namespace Connect.server
 
                 if (str is not null)
                 {
-                    command = new($"SELECT username, user_login, user_password, about_me, avatar FROM users WHERE user_login LIKE '%{str[1]}%' AND user_login != '{str[0]}' LIMIT 6;", connection);
+                    command = new($"SELECT username, user_login, user_password, about_me, avatar " +
+                                  $"FROM users " +
+                                  $"WHERE user_login " +
+                                  $"LIKE '%{str[1]}%' " +
+                                  $"AND user_login != '{str[0]}' " +
+                                  $"LIMIT 6;", connection);
 
                     using var reader = command.ExecuteReader();
 
