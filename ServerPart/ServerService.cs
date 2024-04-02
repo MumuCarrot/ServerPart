@@ -55,7 +55,7 @@ namespace Connect.server
                 {
                     Console.WriteLine($"json:\n{json}\n\n");
                     Console.WriteLine($"str:\n{str}\n");
-                    return default(T);
+                    return default;
                 }
             }
 

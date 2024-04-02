@@ -2,6 +2,7 @@
 using Connect.user;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using MySqlX.XDevAPI.Common;
 using Newtonsoft.Json;
 
 namespace Connect.server
@@ -33,9 +34,12 @@ namespace Connect.server
                     case "--ACMSG":
                         this.GetUpdateChat(request);
                         break; // --ACMSG
-                    case "--UBYLOG":
+                    case "--USER-LIST":
                         this.GetUsersByLogin(request);
-                        break; // --UBYLOG
+                        break; // --USER-LIST
+                    case "--CHAT-LIST":
+                        this.GetUpdateChatList(request);
+                        break; // --CHAT-LIST
                 }
             }
 
@@ -101,30 +105,6 @@ namespace Connect.server
 
                 if (count is not null)
                 {
-                    /*command = new($"SELECT * FROM all_chat ORDER BY msg_id DESC LIMIT {count} ;", connection);
-
-                    using var reader = command.ExecuteReader();
-
-                    List<Message> messages = [];
-
-                    while (reader.Read())
-                    {
-                        string content = reader.GetString(1);
-                        if (content.Contains("&#cO"))
-                        {
-                            content = content.Replace("&#cO", "\'");
-                        }
-
-                        messages.Add(new Message()
-                        {
-                            MessageDateTime = reader.GetString(2),  // Date and Time
-                            Login = reader.GetString(0),            // Username
-                            Content = content,                      // Message
-                            MessageType = reader.GetString(3)       // Type of message
-                        });
-                    }
-                    messages.Reverse();*/
-
                     List<Message> messages = [];
 
                     var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse("660afbf1b76620cd7544eefe"));
@@ -150,7 +130,7 @@ namespace Connect.server
 
             private void GetUsersByLogin(string request)
             {
-                string[]? str = JsonExtractor<string[]>(request, "json", 0);
+                string[]? str = JsonExtractor<string[]>(request, "json");
 
                 if (str is not null)
                 {
@@ -199,7 +179,44 @@ namespace Connect.server
 
                     string json = JsonConvert.SerializeObject(users);
 
-                    SendMessage($"GET --UBYLOG json{{{json}}};");
+                    SendMessage($"GET --USER-LIST json{{{json}}};");
+                }
+            }
+
+            private void GetUpdateChatList(string request)
+            {
+                string? login = JsonExtractor<string>(request, "json");
+
+                if (login is not null)
+                {
+                    /**
+                     *  MONGOSH CODE
+                     * 
+                     *  db.messages.find({ 
+                     *      Chatusers: { 
+                     *          $elemMatch: { 
+                     *              $eq: "sosiska18" 
+                     *              } 
+                     *          } 
+                     *      },
+                     *      { _id: 1 })
+                     */
+
+                    var filter = Builders<Chat>.Filter.ElemMatch(c => c.Chatusers, new BsonDocument("$eq", $"{login}"));
+
+                    var projection = Builders<Chat>.Projection.Include("_id");
+
+                    var result = collection.Find(filter).Project(projection);
+
+                    List<string> idList = [];
+                    foreach (var i in result.ToList())
+                    {
+                        idList.Add(i["_id"].ToString() ?? "null");
+                    }
+
+                    string json = JsonConvert.SerializeObject(idList);
+
+                    SendMessage($"GET --CHAT-LIST json{{{json}}};");
                 }
             }
         }
