@@ -10,9 +10,9 @@ namespace Connect.message
         [BsonRepresentation(BsonType.ObjectId)]
         public ObjectId Id { get; set; }
 
-        public string[]? Chatusers { get; set; }
+        public string[] Chatusers { get; set; } = new string[0];
 
-        public Message[]? Messages { get; set; }
+        public Message[] Messages { get; set; } = new Message[0];
     }
 
     public class Message

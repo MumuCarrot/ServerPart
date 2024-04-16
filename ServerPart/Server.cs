@@ -1,17 +1,13 @@
 ﻿// Connect collection
+using Connect.message;
 using Connect.profilePicture;
-
+using MongoDB.Driver;
 // NuGet collection
 using MySql.Data.MySqlClient;
-using MongoDB.Driver;
-using MongoDB.Bson;
-
 // System collection
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using MySqlX.XDevAPI;
-using Connect.message;
 
 namespace Connect.server
 {

@@ -1,8 +1,8 @@
 ﻿using Connect.message;
 using Connect.user;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
-using MySqlX.XDevAPI.Common;
 using Newtonsoft.Json;
 
 namespace Connect.server
@@ -31,9 +31,9 @@ namespace Connect.server
                     case "--USER_CHECK":
                         this.GetUserCheck(request);
                         break; // --USER_CHECK
-                    case "--ACMSG":
+                    case "--CHAT-HISTORY":
                         this.GetUpdateChat(request);
-                        break; // --ACMSG
+                        break; // --CHAT-HISTORY
                     case "--USER-LIST":
                         this.GetUsersByLogin(request);
                         break; // --USER-LIST
@@ -101,30 +101,27 @@ namespace Connect.server
 
             private void GetUpdateChat(string request)
             {
-                int? count = JsonExtractor<int>(request, "json", 0);
+                string[]? information = JsonExtractor<string[]>(request, "json");
 
-                if (count is not null)
+                if (information is not null)
                 {
-                    List<Message> messages = [];
+                    var filter = Builders<Chat>.Filter.
+                        Eq(c => c.Id, ObjectId.Parse(information[0]));
 
-                    var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse("660afbf1b76620cd7544eefe"));
+                    var projection = Builders<Chat>.Projection.
+                        Slice(c => c.Messages, 0, int.Parse(information[1]));
 
-                    var result = collection.Find(filter);
+                    var result = collection.Find(filter).Project(projection);
 
-                    foreach (var i in result.ToList<Chat>())
+                    List<Chat> chatList = [];
+                    foreach (var i in result.ToList())
                     {
-                        if (i.Messages is not null)
-                        {
-                            foreach (var j in i.Messages)
-                            {
-                                messages.Add(j);
-                            }
-                        }
+                        chatList.Add(BsonSerializer.Deserialize<Chat>(i));
                     }
 
-                    string json = JsonConvert.SerializeObject(messages);
+                    string json = JsonConvert.SerializeObject(chatList);
 
-                    SendMessage($"GET --ACMSG json{{{json}}};");
+                    SendMessage($"GET --CHAT-HISTORY json{{{json}}};");
                 }
             }
 
@@ -189,34 +186,41 @@ namespace Connect.server
 
                 if (login is not null)
                 {
-                    /**
-                     *  MONGOSH CODE
-                     * 
-                     *  db.messages.find({ 
-                     *      Chatusers: { 
-                     *          $elemMatch: { 
-                     *              $eq: "sosiska18" 
-                     *              } 
-                     *          } 
-                     *      },
-                     *      { _id: 1 })
-                     */
 
-                    var filter = Builders<Chat>.Filter.ElemMatch(c => c.Chatusers, new BsonDocument("$eq", $"{login}"));
+                    var aggregate = collection.Aggregate()
+                        .Match(c => c.Chatusers.Contains(login))
+                        .Project(c => new
+                        {
+                            c.Id,
+                            c.Chatusers,
+                            LastMessage = c.Messages.OrderByDescending(m => m.Time).FirstOrDefault()
+                        });
 
-                    var projection = Builders<Chat>.Projection.Include("_id");
+                    var result = aggregate.ToList();
 
-                    var result = collection.Find(filter).Project(projection);
-
-                    List<string> idList = [];
-                    foreach (var i in result.ToList())
+                    List<Chat> chatList = [];
+                    foreach (var chat in result)
                     {
-                        idList.Add(i["_id"].ToString() ?? "null");
+                        chatList.Add(new Chat 
+                        { 
+                            Id = chat.Id,
+                            Chatusers = chat.Chatusers,
+                            Messages =
+                            [
+                                new Message
+                                { 
+                                    Username = chat.LastMessage?.Username,
+                                    Content = chat.LastMessage?.Content,
+                                    Time = chat.LastMessage?.Time
+                                }
+                            ]
+                        });
                     }
 
-                    string json = JsonConvert.SerializeObject(idList);
+                    string json = JsonConvert.SerializeObject(chatList);
 
                     SendMessage($"GET --CHAT-LIST json{{{json}}};");
+
                 }
             }
         }
