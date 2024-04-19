@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Connect.profilePicture;
+using Newtonsoft.Json;
 
 namespace Connect.user
 {
@@ -21,7 +22,7 @@ namespace Connect.user
         public string Password { get; set; } = string.Empty;
         [JsonProperty("aboutme")]
         public string AboutMe { get; set; } = string.Empty;
-        [JsonProperty("profilepicturepath")]
-        public string ProfilePicturePath { get; set; } = string.Empty;
+        [JsonProperty("profilepicture")]
+        public ProfilePicture UserProfilePicture { get; set; } = new();
     }
 }

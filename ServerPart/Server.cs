@@ -166,7 +166,6 @@ namespace Connect.server
         {
             // Creating connection with a client
             protected readonly NetworkStream stream = client.GetStream();
-            protected ProfilePicture? ava = null;
             protected List<byte[]> byteBush = [];
 
             /// <summary>

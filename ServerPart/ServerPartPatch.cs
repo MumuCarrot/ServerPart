@@ -1,7 +1,7 @@
-﻿using Connect.profilePicture;
+﻿using Connect.main;
+using Connect.profilePicture;
 using Connect.user;
 using System.Drawing;
-using System.Drawing.Imaging;
 
 namespace Connect.server
 {
@@ -32,6 +32,9 @@ namespace Connect.server
                     case "--UPD_UPASSWORD":
                         PatchUserPassword(request);
                         break; // --UPD_UPASSWORD
+                    case "--PROFILE-PIC":
+                        PatchProfilePicture(request);
+                        break; // --PROFILE-PIC
                 }
             }
 
@@ -49,10 +52,25 @@ namespace Connect.server
 
             private void PatchUserPassword(string request)
             {
-                string?[]? str = JsonExtractor<string?[]?>(request, "json", 0);
+                string?[]? str = JsonExtractor<string?[]?>(request, "json");
                 if (str is not null && str[0] is not null && str[1] is not null)
                 {
                     command = new($"UPDATE users SET user_password = \"{str[0]}\" WHERE user_login = \"{str[1]}\";", connection);
+
+                    using var reader = command.ExecuteReader();
+                }
+            }
+
+            private void PatchProfilePicture(string request) 
+            {
+                ProfilePicture? profilePicture = JsonExtractor<ProfilePicture>(request, "user", right:1);
+
+                if (profilePicture is not null) 
+                {
+                    command = new($"UPDATE users " +
+                                  $"SET profile_picture = \"{profilePicture.PictureName}\", " +
+                                  $"profile_background = \"{profilePicture.PPColor}\" " +
+                                  $"WHERE user_login = \"{profilePicture.Login}\";", connection);
 
                     using var reader = command.ExecuteReader();
                 }

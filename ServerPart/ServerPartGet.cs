@@ -28,9 +28,9 @@ namespace Connect.server
                 string methodWord = request[..methodIndex];
                 switch (methodWord)
                 {
-                    case "--USER_CHECK":
+                    case "--LOG-IN":
                         this.GetUserCheck(request);
-                        break; // --USER_CHECK
+                        break; // --LOG-IN
                     case "--CHAT-HISTORY":
                         this.GetUpdateChat(request);
                         break; // --CHAT-HISTORY
@@ -45,11 +45,14 @@ namespace Connect.server
 
             private void GetUserCheck(string request)
             {
-                User? user = JsonExtractor<User>(request, "json", 0, 1);
+                User? user = JsonExtractor<User>(request, "json", right:2);
 
                 if (user is not null)
                 {
-                    command = new($"SELECT * FROM users WHERE(user_login = \'{user.Login}\' AND user_password = \'{user.Password}\');", connection);
+                    command = new($"SELECT username, user_login, user_password, IFNULL(about_me, ''), IFNULL(profile_picture, ''), IFNULL(profile_background, '') " +
+                                  $"FROM users " +
+                                  $"WHERE(user_login = \'{user.Login}\' " +
+                                  $"AND user_password = \'{user.Password}\');", connection);
 
                     using var reader = command.ExecuteReader();
 
@@ -59,26 +62,22 @@ namespace Connect.server
                         count++;
                         try
                         {
-                            string aboutMe;
-                            try
-                            {
-                                aboutMe = reader.GetString(3);
-                            }
-                            catch
-                            {
-                                aboutMe = string.Empty;
-                            }
                             user = new()
                             {
                                 UserName = reader.GetString(0),
                                 Login = reader.GetString(1),
                                 Password = reader.GetString(2),
-                                AboutMe = aboutMe
+                                AboutMe = reader.GetString(3),
+                                UserProfilePicture = new() 
+                                { 
+                                    PictureName = reader.GetString(4),
+                                    PPColor = reader.GetString(5),
+                                }
                             };
                         }
                         catch
                         {
-                            count = 99;
+                            count = -1;
                             break;
                         }
                     }
@@ -87,12 +86,12 @@ namespace Connect.server
                     if (count == 1)
                     {
                         string json = JsonConvert.SerializeObject(user);
-                        SendMessage($"GET --USER_CHECK json{{{json}}} ANSWER{{status{{true}}}};");
+                        SendMessage($"GET --LOG-IN json{{{json}}}");
                     }
                     // User not found
                     else if (count < 1)
                     {
-                        SendMessage(request + " ANSWER{status{false}};");
+                        SendMessage("GET --LOG-IN FALSE");
                     }
                     else if (count > 1) throw new Exception("Here was found more then one user by this login or password...");
                     else throw new Exception("Unexpected error!");
@@ -131,7 +130,7 @@ namespace Connect.server
 
                 if (str is not null)
                 {
-                    command = new($"SELECT username, user_login, user_password, about_me, avatar " +
+                    command = new($"SELECT username, user_login, user_password, IFNULL(about_me, ''), IFNULL(profile_picture, ''), IFNULL(profile_background, '') " +
                                   $"FROM users " +
                                   $"WHERE user_login " +
                                   $"LIKE '%{str[1]}%' " +
@@ -143,40 +142,23 @@ namespace Connect.server
                     UserPackege users = new();
                     while (reader.Read())
                     {
-                        string username;
-                        string login;
-                        string password;
-                        string aboutme;
-                        string pppath;
-
-                        try { username = reader.GetString(0); }
-                        catch { username = string.Empty; }
-
-                        try { login = reader.GetString(1); }
-                        catch { login = string.Empty; }
-
-                        try { password = reader.GetString(2); }
-                        catch { password = string.Empty; }
-
-                        try { aboutme = reader.GetString(3); }
-                        catch { aboutme = string.Empty; }
-
-                        try { pppath = reader.GetString(4); }
-                        catch { pppath = string.Empty; }
-
                         users.users.Add(new User
                         {
-                            UserName = username,
-                            Login = login,
-                            Password = password,
-                            AboutMe = aboutme,
-                            ProfilePicturePath = pppath
+                            UserName = reader.GetString(0),
+                            Login = reader.GetString(1),
+                            Password = reader.GetString(2),
+                            AboutMe = reader.GetString(3),
+                            UserProfilePicture = new()
+                            {
+                                PictureName = reader.GetString(4),
+                                PPColor = reader.GetString(5),
+                            }
                         });
                     }
 
                     string json = JsonConvert.SerializeObject(users);
 
-                    SendMessage($"GET --USER-LIST json{{{json}}};");
+                    SendMessage($"GET --USER-LIST json{{{json}}}");
                 }
             }
 

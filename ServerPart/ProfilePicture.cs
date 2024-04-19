@@ -1,19 +1,28 @@
 ﻿using Newtonsoft.Json;
+using System.Drawing;
 
 namespace Connect.profilePicture
 {
     /// <summary>
-    /// An implementation of profile image
+    /// An implementation of profile picture
     /// </summary>
-    class ProfilePicture
+    public class ProfilePicture
     {
-        [JsonProperty("datetime")]
-        public string AvatarDateTime { get; set; } = string.Empty;
-        [JsonProperty("username")]
-        public string UserName { get; set; } = string.Empty;
+        /// <summary>
+        /// Current background of profile picture
+        /// </summary>
+        [JsonProperty("color")]
+        public string PPColor { get; set; } = "default";
+        /// <summary>
+        /// Current picture name
+        /// </summary>
+        [JsonProperty("image_name")]
+        public string PictureName { get; set; } = "default";
+        /// <summary>
+        /// Variable for packing and requesting
+        /// Implamenting login of user
+        /// </summary>
         [JsonProperty("login")]
-        public string Login { get; set; } = string.Empty;
-        [JsonProperty("bytes")]
-        public byte[] Bytes { get; set; } = new byte[1024];
+        public string? Login { get; set; } = null;
     }
 }
