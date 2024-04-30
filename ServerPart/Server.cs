@@ -1,6 +1,5 @@
 ﻿// Connect collection
 using Connect.message;
-using Connect.profilePicture;
 using MongoDB.Driver;
 // NuGet collection
 using MySql.Data.MySqlClient;
@@ -42,9 +41,9 @@ namespace Connect.server
         /// </summary>
         private MySqlCommand? command;
 
-        private const string MongoDatabaseName = "test";
+        private const string MongoDatabaseName = "ChatList";
 
-        private const string MongoCollectionName = "messages";
+        private const string MongoCollectionName = "chats";
 
         private MongoClient? mongoClient;
 
@@ -180,6 +179,7 @@ namespace Connect.server
                 {
                     // Wait for data
                     while (!stream.DataAvailable) Thread.Sleep(500);
+
                     // Byte buffer -> Read request -> Encode
                     byte[] bytes = new byte[client.Available];
                     stream.Read(bytes, 0, bytes.Length);

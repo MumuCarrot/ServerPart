@@ -1,7 +1,5 @@
-﻿using Connect.main;
-using Connect.profilePicture;
+﻿using Connect.profilePicture;
 using Connect.user;
-using System.Drawing;
 
 namespace Connect.server
 {
@@ -44,7 +42,9 @@ namespace Connect.server
 
                 if (user is not null)
                 {
-                    command = new($"UPDATE users SET username = \"{user.UserName}\", user_login = \"{user.Login}\", about_me = \"{user.AboutMe}\" WHERE user_login = '{user.Login}';", connection);
+                    command = new($"UPDATE users " +
+                                  $"SET username = \"{user.UserName}\", user_login = \"{user.Login}\", about_me = \"{user.AboutMe}\" " +
+                                  $"WHERE user_login = '{user.Login}';", connection);
 
                     using var reader = command.ExecuteReader();
                 }
@@ -55,17 +55,19 @@ namespace Connect.server
                 string?[]? str = JsonExtractor<string?[]?>(request, "json");
                 if (str is not null && str[0] is not null && str[1] is not null)
                 {
-                    command = new($"UPDATE users SET user_password = \"{str[0]}\" WHERE user_login = \"{str[1]}\";", connection);
+                    command = new($"UPDATE users " +
+                                  $"SET user_password = \"{str[0]}\" " +
+                                  $"WHERE user_login = \"{str[1]}\";", connection);
 
                     using var reader = command.ExecuteReader();
                 }
             }
 
-            private void PatchProfilePicture(string request) 
+            private void PatchProfilePicture(string request)
             {
-                ProfilePicture? profilePicture = JsonExtractor<ProfilePicture>(request, "user", right:1);
+                ProfilePicture? profilePicture = JsonExtractor<ProfilePicture>(request, "user", right: 1);
 
-                if (profilePicture is not null) 
+                if (profilePicture is not null)
                 {
                     command = new($"UPDATE users " +
                                   $"SET profile_picture = \"{profilePicture.PictureName}\", " +

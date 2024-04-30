@@ -33,6 +33,9 @@ namespace Connect.server
                     case "--MSG":
                         this.PostMessage(request);
                         break; // --MSG
+                    case "--CHAT":
+                        this.PostChat(request);
+                        break; // --CHAT
                 }
             }
 
@@ -42,7 +45,8 @@ namespace Connect.server
 
                 if (user is not null)
                 {
-                    command = new($"INSERT INTO users VALUES (\'{user.Login}\', \'{user.Login}\', \'{user.Password}\');", connection);
+                    command = new($"INSERT INTO users " +
+                                  $"VALUES (\'{user.Login}\', \'{user.Login}\', \'{user.Password}\');", connection);
 
                     using var reader = command.ExecuteReader();
                 }
@@ -50,12 +54,15 @@ namespace Connect.server
 
             private void PostMessage(string request)
             {
-                Message? message = JsonExtractor<Message>(request, "json", right:1);
+                KeyValuePair<string, Message> kvp = JsonExtractor<KeyValuePair<string, Message>>(request, "json", right: 2);
 
-                if (message is not null)
-                { 
+                string? chatId = kvp.Key;
+                Message? message = kvp.Value;
+
+                if (message is not null && chatId is not null)
+                {
                     string content = message.Content?.Text ?? "";
-                    if (content.Contains('\'')) 
+                    if (content.Contains('\''))
                     {
                         content = message.Content?.Text?.Replace("\'", "&#cO") ?? "null";
                     }
@@ -64,11 +71,11 @@ namespace Connect.server
                      *  STAGE I
                      *  
                      *  { 
-                     *      "_id": ObjectId('660afbf1b76620cd7544eefe') 
+                     *      "_id": ObjectId('Id') 
                      *  }
                      */
 
-                    var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse("660afbf1b76620cd7544eefe"));
+                    var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse(chatId));
 
                     /**
                      *  STAGE II
@@ -83,8 +90,8 @@ namespace Connect.server
                      *              },
                      *              "Time": { 
                      *                  "$date": "2024-04-01T18:25:49.205Z" 
-                     *                  }
                      *              }
+                     *          }
                      */
 
                     var update = Builders<Chat>.Update.Push(c => c.Messages, message);
@@ -94,6 +101,32 @@ namespace Connect.server
                     string json = JsonConvert.SerializeObject(message);
 
                     this.SendGlobalMessage($"POST --MSG json{{{json}}}");
+                }
+            }
+
+            private void PostChat(string request)
+            {
+                var users = JsonExtractor<List<string>>(request, "json");
+
+                if (users is not null)
+                {
+                    string json = string.Empty;
+
+                    try
+                    {
+                        Chat newChat = new()
+                        {
+                            Chatusers = users.ToArray(),
+                        };
+
+                        collection?.InsertOne(newChat);
+
+                        SendMessage("POST --CHAT TRUE");
+                    }
+                    catch
+                    {
+                        SendMessage("POST --CHAT FLASE");
+                    }
                 }
             }
         }

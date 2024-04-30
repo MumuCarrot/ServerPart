@@ -1,9 +1,12 @@
-﻿using Connect.message;
+﻿using Amazon.Runtime.Internal.Transform;
+using Connect.message;
 using Connect.user;
+using DnsClient;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace Connect.server
 {
@@ -40,6 +43,9 @@ namespace Connect.server
                     case "--CHAT-LIST":
                         this.GetUpdateChatList(request);
                         break; // --CHAT-LIST
+                    case "--CHAT-PICTURE":
+                        this.GetUpdateChatPicture(request);
+                        break; // --CHAT-PICTURE
                 }
             }
 
@@ -168,7 +174,6 @@ namespace Connect.server
 
                 if (login is not null)
                 {
-
                     var aggregate = collection.Aggregate()
                         .Match(c => c.Chatusers.Contains(login))
                         .Project(c => new
@@ -202,7 +207,73 @@ namespace Connect.server
                     string json = JsonConvert.SerializeObject(chatList);
 
                     SendMessage($"GET --CHAT-LIST json{{{json}}};");
+                }
+            }
 
+            private void GetUpdateChatPicture(string request)
+            {
+                (string?, string?[])? deq = JsonExtractor<(string?, string?[])>(request, "json", right: 1);
+
+                if (deq is not null && deq is not (null, null))
+                {
+                    // Searching for chats with user
+                    var aggregate = collection.Aggregate()
+                        .Match(c => c.Chatusers.Contains(deq.Value.Item1 ?? "null"))
+                        .Project(c => new
+                        {
+                            c.Id,
+                            c.Chatusers
+                        });
+
+                    var result = aggregate.ToList();
+
+                    List<Chat> chatList = [];
+                    foreach (var chat in result)
+                    {
+                        chatList.Add(new Chat
+                        {
+                            Id = chat.Id,
+                            Chatusers = chat.Chatusers
+                        });
+                    }
+
+                    // Filtring chatusers
+                    Dictionary<string, string> userIdPair = [];
+                    foreach (var chat in chatList) 
+                    {
+                        if (deq.Value.Item2.Contains(chat.Id.ToString())) 
+                        { 
+                            foreach (var user in chat.Chatusers) 
+                            {
+                                if (user != deq.Value.Item1) 
+                                {
+                                    userIdPair.Add(user, chat.Id.ToString());
+                                }
+                            }
+                        }
+                    }
+
+                    // Searching for users profile picture
+                    command = new($"SELECT user_login, IFNULL(profile_picture, ''), IFNULL(profile_background, '') " +
+                                  $"FROM users " +
+                                  $"WHERE user_login " +
+                                  $"IN ({string.Join(", ", userIdPair.Keys.Select(value => $"'{value}'"))});", connection);
+
+                    using var reader = command.ExecuteReader();
+
+                    // Reading answer
+                    Dictionary<string, (string, string)> answer = []; 
+                    while (reader.Read()) 
+                    {
+                        if (userIdPair.ContainsKey(reader.GetString(0))) 
+                        {
+                            answer.Add(userIdPair[reader.GetString(0)], (reader.GetString(1), reader.GetString(2)));
+                        }
+                    }
+
+                    string json = JsonConvert.SerializeObject(answer);
+
+                    SendMessage($"GET --CHAT-PICTURE json{{{json}}};");
                 }
             }
         }
