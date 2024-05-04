@@ -1,12 +1,9 @@
-﻿using Amazon.Runtime.Internal.Transform;
-using Connect.message;
+﻿using Connect.message;
 using Connect.user;
-using DnsClient;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Newtonsoft.Json;
-using System.Collections.Generic;
 
 namespace Connect.server
 {
@@ -48,10 +45,14 @@ namespace Connect.server
                         break; // --CHAT-PICTURE
                 }
             }
-
+            /// <summary>
+            /// Search for user by Login and Password
+            /// </summary>
+            /// <param name="request"></param>
+            /// <exception cref="Exception"></exception>
             private void GetUserCheck(string request)
             {
-                User? user = JsonExtractor<User>(request, "json", right:2);
+                User? user = JsonExtractor<User>(request, "json", right: 2);
 
                 if (user is not null)
                 {
@@ -74,8 +75,8 @@ namespace Connect.server
                                 Login = reader.GetString(1),
                                 Password = reader.GetString(2),
                                 AboutMe = reader.GetString(3),
-                                UserProfilePicture = new() 
-                                { 
+                                UserProfilePicture = new()
+                                {
                                     PictureName = reader.GetString(4),
                                     PPColor = reader.GetString(5),
                                 }
@@ -103,7 +104,12 @@ namespace Connect.server
                     else throw new Exception("Unexpected error!");
                 }
             }
-
+            /// <summary>
+            /// Search for a chat history of current user
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void GetUpdateChat(string request)
             {
                 string[]? information = JsonExtractor<string[]>(request, "json");
@@ -129,7 +135,12 @@ namespace Connect.server
                     SendMessage($"GET --CHAT-HISTORY json{{{json}}};");
                 }
             }
-
+            /// <summary>
+            /// Search for user by Login
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void GetUsersByLogin(string request)
             {
                 string[]? str = JsonExtractor<string[]>(request, "json");
@@ -167,7 +178,12 @@ namespace Connect.server
                     SendMessage($"GET --USER-LIST json{{{json}}}");
                 }
             }
-
+            /// <summary>
+            /// Search for a list of chats of current user
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void GetUpdateChatList(string request)
             {
                 string? login = JsonExtractor<string>(request, "json");
@@ -188,14 +204,14 @@ namespace Connect.server
                     List<Chat> chatList = [];
                     foreach (var chat in result)
                     {
-                        chatList.Add(new Chat 
-                        { 
+                        chatList.Add(new Chat
+                        {
                             Id = chat.Id,
                             Chatusers = chat.Chatusers,
                             Messages =
                             [
                                 new Message
-                                { 
+                                {
                                     Username = chat.LastMessage?.Username,
                                     Content = chat.LastMessage?.Content,
                                     Time = chat.LastMessage?.Time
@@ -209,7 +225,12 @@ namespace Connect.server
                     SendMessage($"GET --CHAT-LIST json{{{json}}};");
                 }
             }
-
+            /// <summary>
+            /// Search for chat image(s)
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void GetUpdateChatPicture(string request)
             {
                 (string?, string?[])? deq = JsonExtractor<(string?, string?[])>(request, "json", right: 1);
@@ -239,13 +260,13 @@ namespace Connect.server
 
                     // Filtring chatusers
                     Dictionary<string, string> userIdPair = [];
-                    foreach (var chat in chatList) 
+                    foreach (var chat in chatList)
                     {
-                        if (deq.Value.Item2.Contains(chat.Id.ToString())) 
-                        { 
-                            foreach (var user in chat.Chatusers) 
+                        if (deq.Value.Item2.Contains(chat.Id.ToString()))
+                        {
+                            foreach (var user in chat.Chatusers)
                             {
-                                if (user != deq.Value.Item1) 
+                                if (user != deq.Value.Item1)
                                 {
                                     userIdPair.Add(user, chat.Id.ToString());
                                 }
@@ -262,10 +283,10 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
 
                     // Reading answer
-                    Dictionary<string, (string, string)> answer = []; 
-                    while (reader.Read()) 
+                    Dictionary<string, (string, string)> answer = [];
+                    while (reader.Read())
                     {
-                        if (userIdPair.ContainsKey(reader.GetString(0))) 
+                        if (userIdPair.ContainsKey(reader.GetString(0)))
                         {
                             answer.Add(userIdPair[reader.GetString(0)], (reader.GetString(1), reader.GetString(2)));
                         }

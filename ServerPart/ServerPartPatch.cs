@@ -35,7 +35,12 @@ namespace Connect.server
                         break; // --PROFILE-PIC
                 }
             }
-
+            /// <summary>
+            /// Update current user
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void PatchUpdateUser(string request)
             {
                 User? user = JsonExtractor<User>(request, "json", 0);
@@ -49,7 +54,12 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
                 }
             }
-
+            /// <summary>
+            /// Update password of current user
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void PatchUserPassword(string request)
             {
                 string?[]? str = JsonExtractor<string?[]?>(request, "json");
@@ -62,7 +72,12 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
                 }
             }
-
+            /// <summary>
+            /// Update profile picture of current user
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void PatchProfilePicture(string request)
             {
                 ProfilePicture? profilePicture = JsonExtractor<ProfilePicture>(request, "user", right: 1);

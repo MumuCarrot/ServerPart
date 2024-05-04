@@ -38,7 +38,12 @@ namespace Connect.server
                         break; // --CHAT
                 }
             }
-
+            /// <summary>
+            /// Create new user
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void PostUser(string request)
             {
                 User? user = JsonExtractor<User>(request, "json", 0);
@@ -51,7 +56,12 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
                 }
             }
-
+            /// <summary>
+            /// Create new message
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void PostMessage(string request)
             {
                 KeyValuePair<string, Message> kvp = JsonExtractor<KeyValuePair<string, Message>>(request, "json", right: 2);
@@ -67,32 +77,7 @@ namespace Connect.server
                         content = message.Content?.Text?.Replace("\'", "&#cO") ?? "null";
                     }
 
-                    /**
-                     *  STAGE I
-                     *  
-                     *  { 
-                     *      "_id": ObjectId('Id') 
-                     *  }
-                     */
-
                     var filter = Builders<Chat>.Filter.Eq(c => c.Id, ObjectId.Parse(chatId));
-
-                    /**
-                     *  STAGE II
-                     * 
-                     *  { 
-                     *      $push: { 
-                     *          "Messages": { 
-                     *              "sender": "so4najaPopka19", 
-                     *              "Content": { 
-                     *                  "Text": "I love u too", 
-                     *                  "Image": "" 
-                     *              },
-                     *              "Time": { 
-                     *                  "$date": "2024-04-01T18:25:49.205Z" 
-                     *              }
-                     *          }
-                     */
 
                     var update = Builders<Chat>.Update.Push(c => c.Messages, message);
 
@@ -103,7 +88,12 @@ namespace Connect.server
                     this.SendGlobalMessage($"POST --MSG json{{{json}}}");
                 }
             }
-
+            /// <summary>
+            /// Create a new chat
+            /// </summary>
+            /// <param name="request">
+            /// Request
+            /// </param>
             private void PostChat(string request)
             {
                 var users = JsonExtractor<List<string>>(request, "json");
