@@ -41,13 +41,55 @@ namespace Connect.server
         /// </summary>
         private MySqlCommand? command;
 
+        /// <summary>
+        /// Name of Mongo database
+        /// </summary>
         private const string MongoDatabaseName = "ChatList";
 
+        /// <summary>
+        /// Name of Mongo collection
+        /// </summary>
         private const string MongoCollectionName = "chats";
 
+        /// <summary>
+        /// Mongo client
+        /// </summary>
         private MongoClient? mongoClient;
 
+        /// <summary>
+        /// Mongo collection
+        /// </summary>
         private static IMongoCollection<Chat>? collection;
+
+        /// <summary>
+        /// Is TCP server started
+        /// </summary>
+        public bool Connected = false;
+
+        /// <summary>
+        /// Is MySql database connected
+        /// </summary>
+        public bool IsMySqlConnected = false;
+
+        /// <summary>
+        /// Is MySql command created
+        /// </summary>
+        public bool IsMySqlCommandCreated = false;
+
+        /// <summary>
+        /// Is MongoDB connected
+        /// </summary>
+        public bool IsMongoDBConnected = false;
+
+        /// <summary>
+        /// IS MongoDB collection was found
+        /// </summary>
+        public bool IsMongoDBCollectionFound = false;
+
+        /// <summary>
+        /// Is server running
+        /// </summary>
+        public bool IsServerRunning = false;
 
         /// <summary>
         /// Server primary constructor
@@ -66,6 +108,8 @@ namespace Connect.server
                 this.tcpListener = new(IPAddress.Parse(ip), port);
                 this.tcpListener.Start();
 
+                Connected = true;
+
                 Console.WriteLine($"Server has started on {ip}:{port}.");
             }
             catch
@@ -82,18 +126,29 @@ namespace Connect.server
         /// </param>
         public void SetDBPath(string mySqlPath, string MongoDBPath)
         {
-            // Search for mySql user database
-            this.connection = new(mySqlPath);
-            connection.Open();
+            try
+            {
+                // Search for mySql user database
+                this.connection = new(mySqlPath);
+                connection.Open();
+                IsMySqlConnected = true;
 
-            // Creation of mySql user command
-            this.command = connection.CreateCommand();
+                // Creation of mySql user command
+                this.command = connection.CreateCommand();
+                IsMySqlCommandCreated = true;
 
-            // Search for MongoDB data base
-            mongoClient = new(MongoDBPath);
+                // Search for MongoDB data base
+                mongoClient = new(MongoDBPath);
+                IsMongoDBConnected = true;
 
-            // Connecting to the MongoDB messageList collection
-            collection = mongoClient.GetDatabase(MongoDatabaseName).GetCollection<Chat>(MongoCollectionName);
+                // Connecting to the MongoDB messageList collection
+                collection = mongoClient.GetDatabase(MongoDatabaseName).GetCollection<Chat>(MongoCollectionName);
+                IsMongoDBCollectionFound = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         /// <summary>
@@ -101,9 +156,14 @@ namespace Connect.server
         /// </summary>
         public void Start()
         {
-            // Creation of listener thread
-            this.listenerThread = new Thread(new ThreadStart(ListenForClients));
-            this.listenerThread.Start();
+            if (!IsServerRunning)
+            {
+                // Creation of listener thread
+                this.listenerThread = new Thread(new ThreadStart(ListenForClients));
+                this.listenerThread.Start();
+                IsServerRunning = true;
+            }
+            else throw new Exception("Server is already started!");
         }
 
         /// <summary>

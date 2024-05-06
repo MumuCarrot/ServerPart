@@ -35,6 +35,7 @@ namespace Connect.server
                         break; // --PROFILE-PIC
                 }
             }
+
             /// <summary>
             /// Update current user
             /// </summary>
@@ -54,6 +55,7 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
                 }
             }
+
             /// <summary>
             /// Update password of current user
             /// </summary>
@@ -72,6 +74,7 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
                 }
             }
+
             /// <summary>
             /// Update profile picture of current user
             /// </summary>

@@ -31,8 +31,32 @@ namespace Connect.server
             }
         }
 
+        /// <summary>
+        /// Part of client
+        /// </summary>
         private partial class Client
         {
+            /// <summary>
+            /// Json extractor
+            /// </summary>
+            /// <typeparam name="T">
+            /// The class to be obtained
+            /// </typeparam>
+            /// <param name="json">
+            /// String with json
+            /// </param>
+            /// <param name="keyWord">
+            /// Keyword followed by json
+            /// </param>
+            /// <param name="left">
+            /// Left shift
+            /// </param>
+            /// <param name="right">
+            /// Right shift
+            /// </param>
+            /// <returns>
+            /// New element of T
+            /// </returns>
             private static T? JsonExtractor<T>(string json, string keyWord, int left = 0, int right = 0)
             {
                 string str = string.Empty;

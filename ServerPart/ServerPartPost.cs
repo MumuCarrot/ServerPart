@@ -38,6 +38,7 @@ namespace Connect.server
                         break; // --CHAT
                 }
             }
+
             /// <summary>
             /// Create new user
             /// </summary>
@@ -56,6 +57,7 @@ namespace Connect.server
                     using var reader = command.ExecuteReader();
                 }
             }
+
             /// <summary>
             /// Create new message
             /// </summary>
@@ -88,6 +90,7 @@ namespace Connect.server
                     this.SendGlobalMessage($"POST --MSG json{{{json}}}");
                 }
             }
+
             /// <summary>
             /// Create a new chat
             /// </summary>

@@ -3,12 +3,12 @@
 namespace Connect.main
 {
     /// <summary>
-    /// Program entrence point
+    /// Program entrance point
     /// </summary>
     class Program
     {
         /// <summary>
-        /// Entrence
+        /// Entrance
         /// </summary>
         static void Main()
         {

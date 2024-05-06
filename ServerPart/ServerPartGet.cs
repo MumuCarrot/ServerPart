@@ -45,6 +45,7 @@ namespace Connect.server
                         break; // --CHAT-PICTURE
                 }
             }
+
             /// <summary>
             /// Search for user by Login and Password
             /// </summary>
@@ -104,6 +105,7 @@ namespace Connect.server
                     else throw new Exception("Unexpected error!");
                 }
             }
+
             /// <summary>
             /// Search for a chat history of current user
             /// </summary>
@@ -135,6 +137,7 @@ namespace Connect.server
                     SendMessage($"GET --CHAT-HISTORY json{{{json}}};");
                 }
             }
+
             /// <summary>
             /// Search for user by Login
             /// </summary>
@@ -178,6 +181,7 @@ namespace Connect.server
                     SendMessage($"GET --USER-LIST json{{{json}}}");
                 }
             }
+
             /// <summary>
             /// Search for a list of chats of current user
             /// </summary>
@@ -225,6 +229,7 @@ namespace Connect.server
                     SendMessage($"GET --CHAT-LIST json{{{json}}};");
                 }
             }
+
             /// <summary>
             /// Search for chat image(s)
             /// </summary>
