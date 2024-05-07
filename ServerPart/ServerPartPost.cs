@@ -47,12 +47,12 @@ namespace Connect.server
             /// </param>
             private void PostUser(string request)
             {
-                User? user = JsonExtractor<User>(request, "json", 0);
+                User? user = JsonExtractor<User>(request, "json", right:2);
 
                 if (user is not null)
                 {
-                    command = new($"INSERT INTO users " +
-                                  $"VALUES (\'{user.Login}\', \'{user.Login}\', \'{user.Password}\');", connection);
+                    command = new($"INSERT INTO users (username, user_login, user_password, profile_picture, profile_background) " +
+                                  $"VALUES (\'{user.Login}\', \'{user.Login}\', \'{user.Password}\', \'default\', \'#FFDCF1FF\');", connection);
 
                     using var reader = command.ExecuteReader();
                 }

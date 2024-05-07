@@ -240,7 +240,7 @@ namespace Connect.server
             {
                 (string?, string?[])? deq = JsonExtractor<(string?, string?[])>(request, "json", right: 1);
 
-                if (deq is not null && deq is not (null, null))
+                if (deq is not null && deq is not (null, null) && deq.Value.Item1?.Length > 0 && deq.Value.Item2.Length > 0)
                 {
                     // Searching for chats with user
                     var aggregate = collection.Aggregate()

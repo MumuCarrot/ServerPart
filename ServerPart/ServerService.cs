@@ -16,7 +16,7 @@ namespace Connect.server
         /// </param>
         private void GlobalMessage(Client sender, string message)
         {
-            var newOnlineUsers = onlineUsers;
+            List<Client> newOnlineUsers = new(onlineUsers);
             foreach (var client in newOnlineUsers)
             {
                 try
@@ -59,27 +59,17 @@ namespace Connect.server
             /// </returns>
             private static T? JsonExtractor<T>(string json, string keyWord, int left = 0, int right = 0)
             {
-                string str = string.Empty;
-                try
-                {
-                    // Searching for JSON start point
-                    int start = json.IndexOf($"{keyWord}{{") + $"{keyWord}{{".Length;
-                    if (start == -1) throw new Exception("JSON start point wasn't found.");
-                    int endpointStart = json.LastIndexOf("},") + "},".Length;
-                    if (endpointStart == -1) endpointStart = start;
-                    int end = json.IndexOf('}', endpointStart);
-                    if (end == -1) throw new Exception("JSON end point wasn't found.");
+                // Searching for JSON start point
+                int start = json.IndexOf($"{keyWord}{{") + $"{keyWord}{{".Length;
+                if (start == -1) throw new Exception("JSON start point wasn't found.");
+                int endpointStart = json.LastIndexOf("},") + "},".Length;
+                if (endpointStart == -1) endpointStart = start;
+                int end = json.IndexOf('}', endpointStart);
+                if (end == -1) throw new Exception("JSON end point wasn't found.");
 
-                    str = json[(start + left)..(end + right)];
+                string str = json[(start + left)..(end + right)];
 
-                    return JsonConvert.DeserializeObject<T>(str);
-                }
-                catch
-                {
-                    Console.WriteLine($"json:\n{json}\n\n");
-                    Console.WriteLine($"str:\n{str}\n");
-                    return default;
-                }
+                return JsonConvert.DeserializeObject<T>(str);
             }
 
             /// <summary>

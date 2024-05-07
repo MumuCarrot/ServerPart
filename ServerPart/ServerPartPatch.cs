@@ -44,7 +44,22 @@ namespace Connect.server
             /// </param>
             private void PatchUpdateUser(string request)
             {
-                User? user = JsonExtractor<User>(request, "json", 0);
+                User? user = null;
+                int shift = 4;
+                bool readed = false;
+                while (!readed) 
+                { 
+                    try 
+                    { 
+                        user = JsonExtractor<User>(request, "user", right:shift);
+                        readed = true;
+                    }
+                    catch 
+                    {
+                        shift--;
+                        if (shift < 0) throw new Exception();
+                    }
+                }
 
                 if (user is not null)
                 {
